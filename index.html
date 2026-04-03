@@ -1,0 +1,285 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>1915 台北廳行政區劃 GeoJSON</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Helvetica Neue', Arial, sans-serif; color: #222; background: #fafafa; }
+
+  /* ── Header ── */
+  header {
+    background: #1a2a3a; color: #fff;
+    padding: 24px 40px 20px;
+  }
+  header h1 { font-size: 24px; font-weight: 700; margin-bottom: 6px; }
+  header p  { font-size: 14px; color: #aac; line-height: 1.5; }
+
+  /* ── Map section ── */
+  #map-section { position: relative; }
+  #map { height: 520px; }
+
+  /* Layer toggle pill */
+  .layer-toggle {
+    position: absolute; top: 12px; left: 50%; transform: translateX(-50%);
+    z-index: 1000; display: flex; border-radius: 999px; overflow: hidden;
+    box-shadow: 0 2px 8px #0004; background: #fff;
+  }
+  .layer-toggle button {
+    padding: 8px 22px; font-size: 13px; border: none; cursor: pointer;
+    background: transparent; color: #555; transition: background .2s, color .2s;
+  }
+  .layer-toggle button.active { background: #1a2a3a; color: #fff; }
+
+  /* Popup */
+  .leaflet-popup-content { font-size: 13px; line-height: 1.6; min-width: 130px; }
+  .popup-title  { font-weight: 700; font-size: 15px; margin-bottom: 4px; }
+  .popup-sub    { color: #777; font-size: 12px; }
+
+  /* ── Methodology section ── */
+  .content { max-width: 860px; margin: 0 auto; padding: 40px 24px 60px; }
+  .content h2 { font-size: 20px; margin: 36px 0 12px; color: #1a2a3a;
+                padding-bottom: 6px; border-bottom: 2px solid #e0e8f0; }
+  .content h3 { font-size: 15px; margin: 24px 0 8px; color: #2c4a6a; }
+  .content p  { font-size: 14px; line-height: 1.8; color: #444; margin-bottom: 10px; }
+  .content ul, .content ol { font-size: 14px; line-height: 1.9; color: #444;
+                               padding-left: 20px; margin-bottom: 10px; }
+  .content code { background: #eef2f7; padding: 1px 6px; border-radius: 3px;
+                  font-family: monospace; font-size: 12px; }
+
+  /* flow diagram */
+  .flow {
+    display: flex; flex-wrap: wrap; align-items: center;
+    gap: 0; margin: 18px 0;
+  }
+  .flow-step {
+    background: #eef2f7; border-radius: 6px; padding: 10px 16px;
+    font-size: 13px; text-align: center; min-width: 110px;
+    border: 1px solid #c8d8e8;
+  }
+  .flow-arrow {
+    font-size: 18px; color: #aaa; padding: 0 6px;
+  }
+
+  /* stats grid */
+  .stats-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+                gap: 12px; margin: 16px 0; }
+  .stat-card { background: #fff; border: 1px solid #dde; border-radius: 8px;
+               padding: 14px 18px; }
+  .stat-card .num { font-size: 28px; font-weight: 700; color: #1a2a3a; }
+  .stat-card .lbl { font-size: 12px; color: #888; margin-top: 2px; }
+
+  /* table */
+  table { width: 100%; border-collapse: collapse; font-size: 13px; margin: 12px 0; }
+  th { background: #eef2f7; padding: 8px 12px; text-align: left; color: #1a2a3a; }
+  td { padding: 7px 12px; border-top: 1px solid #eee; vertical-align: top; }
+  tr:hover td { background: #f7fafd; }
+  code.block { display: block; background: #1e2d3d; color: #c8e0f4;
+               padding: 14px 18px; border-radius: 6px; margin: 10px 0;
+               font-size: 12px; line-height: 1.7; white-space: pre; overflow-x: auto; }
+
+  footer { background: #1a2a3a; color: #889; text-align: center;
+           font-size: 12px; padding: 18px; }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>1915 年台北廳行政區劃 — GeoJSON 資料集</h1>
+  <p>以 Wikipedia SVG 歷史地圖為來源，透過 Python 路徑解析、多邊形切割與人工命名，
+     轉換為對齊現代座標系的 GeoJSON 格式。</p>
+</header>
+
+<!-- MAP -->
+<div id="map-section">
+  <div id="map"></div>
+  <div class="layer-toggle">
+    <button id="btn-cho" class="active" onclick="showLayer('cho')">支廳（14）</button>
+    <button id="btn-dist" onclick="showLayer('dist')">區（53）</button>
+    <button id="btn-both" onclick="showLayer('both')">疊加顯示</button>
+  </div>
+</div>
+
+<!-- METHODOLOGY -->
+<div class="content">
+
+  <h2>資料說明</h2>
+  <p>本資料集將 1915 年台北廳行政區劃圖（日治時期）數位化為 GeoJSON 格式，
+     座標系為 WGS84，地理範圍涵蓋今新北市、台北市、基隆市及周邊地區。</p>
+
+  <div class="stats-grid">
+    <div class="stat-card"><div class="num">14</div><div class="lbl">支廳（含廳直轄）</div></div>
+    <div class="stat-card"><div class="num">53</div><div class="lbl">下轄區</div></div>
+    <div class="stat-card"><div class="num">2</div><div class="lbl">GeoJSON 檔案</div></div>
+    <div class="stat-card"><div class="num">1915</div><div class="lbl">資料年份</div></div>
+  </div>
+
+  <h2>處理流程</h2>
+  <div class="flow">
+    <div class="flow-step">Wikipedia<br>SVG 原圖</div>
+    <div class="flow-arrow">→</div>
+    <div class="flow-step">Python<br>路徑解析</div>
+    <div class="flow-arrow">→</div>
+    <div class="flow-step">兩點<br>座標對齊</div>
+    <div class="flow-arrow">→</div>
+    <div class="flow-step">Shapely<br>多邊形切割</div>
+    <div class="flow-arrow">→</div>
+    <div class="flow-step">人工<br>命名確認</div>
+    <div class="flow-arrow">→</div>
+    <div class="flow-step">GeoJSON<br>輸出</div>
+  </div>
+
+  <h3>Step 1 — SVG 路徑解析</h3>
+  <p>來源 SVG 由 Inkscape 繪製，畫布 1200×800 px。使用 Python 標準庫解析
+     <code>M/L/H/V/C/Z</code> 路徑指令；貝茲曲線以 12 段折線取樣。
+     圖層 transform（<code>translate</code>）一併套用。共擷取：</p>
+  <ul>
+    <li><strong>14 條</strong>彩色填充路徑 → 支廳多邊形</li>
+    <li><strong>52 條</strong>白色筆劃路徑（<code>fill:none; stroke:#ffffff</code>）→ 區界分割線</li>
+  </ul>
+
+  <h3>Step 2 — 兩點座標對齊</h3>
+  <p>以 SVG 的極東點與極北點對齊新北市參考座標，採非等比縮放＋平移（無旋轉）：</p>
+  <code class="block">lon = scaleX × px + tx
+lat = −scaleY × py + ty
+
+對齊點：
+  極東 SVG(1161, 490)  →  122.0076°E, 25.008286°N
+  極北 SVG(539, 69)    →  121.577°E,  25.2984°N</code>
+
+  <h3>Step 3 — 支廳命名（人工）</h3>
+  <p>產生互動式標記工具（<code>label_tool.html</code>）：Canvas 地圖可點擊多邊形，
+     對應下拉選單選取支廳名稱（選項自 SVG 文字標籤自動擷取），確認後輸出 JSON。</p>
+
+  <h3>Step 4 — 區多邊形切割</h3>
+  <p>使用 <strong>Shapely 2.x</strong> 對 14 個支廳多邊形逐一套用 52 條白線進行
+     <code>shapely.ops.split()</code>，白線兩端向外延伸 8px 確保穿越邊界，
+     過濾面積小於 0.5% 的碎片，得到 <strong>53 個區多邊形</strong>。</p>
+
+  <h3>Step 5 — 區名自動配對與人工確認</h3>
+  <p>擷取 SVG 中的黑色文字標籤（排除紅色支廳名），以連通元件聚類（閾值 40 px）
+     合併垂直排列的單字漢字，再以 point-in-polygon 測試配對至各區多邊形。
+     最後透過 <code>label_tool_2.html</code> 人工逐一確認修正。</p>
+
+  <h2>GeoJSON 格式</h2>
+  <table>
+    <tr><th>欄位</th><th>說明</th><th>出現於</th></tr>
+    <tr><td><code>name</code></td><td>行政區名稱</td><td>兩檔</td></tr>
+    <tr><td><code>fill</code></td><td>原 SVG 填充色（十六進位）</td><td>兩檔</td></tr>
+    <tr><td><code>id</code></td><td>原 SVG path id</td><td>兩檔</td></tr>
+    <tr><td><code>parent_name</code></td><td>所屬支廳名稱</td><td>1915區</td></tr>
+    <tr><td><code>parent_id</code></td><td>所屬支廳的 SVG id</td><td>1915區</td></tr>
+  </table>
+
+  <h2>檔案清單</h2>
+  <table>
+    <tr><th>檔案</th><th>說明</th></tr>
+    <tr><td><code>1915支廳.geojson</code></td><td>14 個支廳多邊形</td></tr>
+    <tr><td><code>1915區.geojson</code></td><td>53 個區多邊形（含 parent_name）</td></tr>
+    <tr><td><code>svg_to_geojson.py</code></td><td>SVG → 支廳 GeoJSON 主腳本</td></tr>
+    <tr><td><code>make_district.py</code></td><td>區切割、自動命名、label tool 產生</td></tr>
+    <tr><td><code>1915_Taihoku_Cho.svg</code></td><td>原始 SVG（來源：Wikipedia）</td></tr>
+  </table>
+
+</div>
+
+<footer>資料來源：Wikipedia Commons — 1915 Taihoku Cho.svg（公有領域）</footer>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+// ── Map init ──────────────────────────────────────────────────────────────────
+const map = L.map('map').setView([25.05, 121.6], 10);
+
+L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
+  attribution: '© OpenStreetMap contributors © CARTO',
+  maxZoom: 18
+}).addTo(map);
+
+// ── Layer state ───────────────────────────────────────────────────────────────
+let choLayer  = null;
+let distLayer = null;
+let currentMode = 'cho';
+
+function hexToRgba(hex, alpha) {
+  const r = parseInt(hex.slice(1,3),16);
+  const g = parseInt(hex.slice(3,5),16);
+  const b = parseInt(hex.slice(5,7),16);
+  return `rgba(${r},${g},${b},${alpha})`;
+}
+
+function makeChoLayer(data) {
+  return L.geoJSON(data, {
+    style: feat => ({
+      fillColor:   feat.properties.fill,
+      fillOpacity: 0.55,
+      color:       '#444',
+      weight:      1.2,
+    }),
+    onEachFeature: (feat, layer) => {
+      const p = feat.properties;
+      layer.bindPopup(`<div class="popup-title">${p.name}</div>`);
+      layer.on('mouseover', e => { e.target.setStyle({fillOpacity: 0.8, weight: 2}); });
+      layer.on('mouseout',  e => { e.target.setStyle({fillOpacity: 0.55, weight: 1.2}); });
+    }
+  });
+}
+
+function makeDistLayer(data) {
+  return L.geoJSON(data, {
+    style: feat => ({
+      fillColor:   feat.properties.fill,
+      fillOpacity: 0.5,
+      color:       '#555',
+      weight:      0.6,
+    }),
+    onEachFeature: (feat, layer) => {
+      const p = feat.properties;
+      layer.bindPopup(
+        `<div class="popup-title">${p.name}</div>` +
+        `<div class="popup-sub">${p.parent_name}</div>`
+      );
+      layer.on('mouseover', e => { e.target.setStyle({fillOpacity: 0.8, weight: 1.5}); });
+      layer.on('mouseout',  e => { e.target.setStyle({fillOpacity: 0.5,  weight: 0.6}); });
+    }
+  });
+}
+
+function showLayer(mode) {
+  currentMode = mode;
+  document.querySelectorAll('.layer-toggle button').forEach(b => b.classList.remove('active'));
+  document.getElementById(`btn-${mode}`).classList.add('active');
+
+  if (choLayer)  { map.removeLayer(choLayer);  }
+  if (distLayer) { map.removeLayer(distLayer); }
+
+  if (mode === 'cho'  && choLayer)  map.addLayer(choLayer);
+  if (mode === 'dist' && distLayer) map.addLayer(distLayer);
+  if (mode === 'both') {
+    if (choLayer)  map.addLayer(choLayer);
+    if (distLayer) map.addLayer(distLayer);
+  }
+}
+
+// ── Load GeoJSON ──────────────────────────────────────────────────────────────
+Promise.all([
+  fetch('1915支廳.geojson').then(r => r.json()),
+  fetch('1915區.geojson').then(r => r.json()),
+]).then(([choData, distData]) => {
+  choLayer  = makeChoLayer(choData);
+  distLayer = makeDistLayer(distData);
+  showLayer('cho');
+
+  // Fit map to data bounds
+  map.fitBounds(choLayer.getBounds().pad(0.05));
+}).catch(err => {
+  console.error('GeoJSON load error:', err);
+  document.getElementById('map').insertAdjacentHTML('beforeend',
+    '<div style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);' +
+    'background:#fff;padding:16px;border-radius:8px;box-shadow:0 2px 8px #0003;z-index:999">' +
+    '⚠️ 請透過 HTTP server 開啟（或 GitHub Pages），fetch() 不支援 file://</div>');
+});
+</script>
+</body>
+</html>
